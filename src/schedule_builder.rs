@@ -101,6 +101,45 @@ impl ScheduleBuilder<Base> {
         }
     }
 
+
+    /// Checks whether a specified task exists
+    pub fn check_task(&self, task:&str) -> Result<bool, Box<dyn std::error::Error>> {
+        unsafe {
+            match self.schedule.task_folder.GetTask(&BSTR::from(task)) {
+                Ok(_) => Ok(true),
+                Err(_) => Ok(false),
+            }
+        }
+    }
+
+    /// Checks whether a specified task is enabled
+    pub fn check_task_enabled (&self, task:&str) -> Result<bool, Box<dyn std::error::Error>> {
+        unsafe {
+            let task = self.schedule.task_folder.GetTask(&BSTR::from(task))?;
+            let enabled = task.Enabled()?;
+            Ok(enabled.as_bool())
+        }
+    }
+
+    /// Attempts to set a task's enabled state
+    pub fn set_task_enabled (&self, task:&str, enabled:bool) -> Result<(), Box<dyn std::error::Error>> {
+        unsafe {
+            let task = self.schedule.task_folder.GetTask(&BSTR::from(task))?;
+            task.SetEnabled(VARIANT_BOOL::from(enabled))?;
+            Ok(())
+        }
+    }
+
+    /// Delete the specified task
+    pub fn delete_task (&self, task:&str) -> Result<(), Box<dyn std::error::Error>> {
+        unsafe {
+            self.schedule.task_folder.DeleteTask(&BSTR::from(task), 0)?;
+            Ok(())
+        }
+    }
+
+
+
     /// Creates a builder for a boot trigger.
     ///
     /// # Example
