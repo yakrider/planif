@@ -24,6 +24,8 @@ use windows::Win32::System::TaskScheduler::{
 /* triggers */
 /// Marker type for base [`ScheduleBuilder<Base>`]
 pub struct Base {}
+/// Marker type for an on-demand only task [`ScheduleBuilder<OnDemand>`](ScheduleBuilder#impl-ScheduleBuilder<OnDemand>)
+pub struct OnDemand {}
 /// Marker type for boot [`ScheduleBuilder<Boot>`](ScheduleBuilder#impl-ScheduleBuilder<Boot>)
 pub struct Boot {}
 /// Marker type for a daily [`ScheduleBuilder<Daily>`](ScheduleBuilder#impl-ScheduleBuilder<Daily>)
@@ -139,6 +141,25 @@ impl ScheduleBuilder<Base> {
     }
 
 
+
+    /// Creates a builder for an on-demand-only trigger that only runs when manually triggered.
+    ///
+    /// # Example
+    /// ```
+    /// use planif::schedule_builder::{ ComRuntime, OnDemand, ScheduleBuilder };
+    ///
+    /// let com = ComRuntime::new()?;
+    /// let builder: ScheduleBuilder<OnDemand> = ScheduleBuilder::new(&com).unwrap()
+    ///     .create_on_demand();
+    /// ```
+    pub fn create_on_demand(self) -> ScheduleBuilder<OnDemand> {
+
+        ScheduleBuilder::<OnDemand> {
+            com: self.com,
+            frequency: std::marker::PhantomData::<OnDemand>,
+            schedule: self.schedule,
+        }
+    }
 
     /// Creates a builder for a boot trigger.
     ///
@@ -332,7 +353,7 @@ impl ScheduleBuilder<Base> {
     }
 }
 
-impl<Frequency> ScheduleBuilder<Frequency> {
+impl <Frequency: 'static> ScheduleBuilder <Frequency> {
     /// Sets the task folder for this trigger.
     /// For example, the root folder is "\\".
     /// Do not use a backslash following the last folder name in the path.
@@ -424,9 +445,11 @@ impl<Frequency> ScheduleBuilder<Frequency> {
     /// ```
     pub fn build(self) -> Result<Schedule, Box<dyn std::error::Error>> {
         if self.schedule.trigger.is_none() {
-            return Err(Box::new(InvalidOperationError {
-                message: "Folder or trigger not set, cannot create scheduled task".to_string(),
-            }));
+            if std::any::TypeId::of::<Frequency>() != std::any::TypeId::of::<OnDemand>() {
+                return Err(Box::new(InvalidOperationError {
+                    message: "Folder or trigger not set, cannot create scheduled task".to_string(),
+                }));
+            }
         }
 
         if self.schedule.force_start_boundary {
@@ -814,6 +837,10 @@ impl<Frequency> ScheduleBuilder<Frequency> {
         }
         Ok(self)
     }
+}
+
+impl ScheduleBuilder<OnDemand> {
+    // Nothing needed here, it will have no trigger by default, and the build as done in base is adequate
 }
 
 impl ScheduleBuilder<Boot> {
